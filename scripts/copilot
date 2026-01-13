@@ -1,0 +1,23 @@
+#!/bin/bash
+[ -n "$DEBUG" ] && set -x
+
+# Define host directories
+HOST_SANDBOX=$COPILOT_SANDBOXED_HOME/sandbox/copilot
+HOST_SANDBOX_CONFIG_DIR="$HOST_SANDBOX/.config"
+HOST_SANDBOX_COPILOT_DIR="$HOST_SANDBOX/.copilot"
+HOST_SANDBOX_NPM_DIR="$HOST_SANDBOX/.npm"
+
+# Create directories if they don't exist
+mkdir -p "$HOST_SANDBOX_CONFIG_DIR" "$HOST_SANDBOX_COPILOT_DIR" "$HOST_SANDBOX_NPM_DIR"
+
+# Run the container
+# Added --init to handle signals better and ensured all volumes are present
+podman run -it --rm \
+  ${DEBUG:+--log-level debug} \
+  --userns=keep-id \
+  -v "$(pwd):/project:Z" \
+  -w /project \
+  -v "$HOST_SANDBOX_CONFIG_DIR:/home/node/.config:Z" \
+  -v "$HOST_SANDBOX_COPILOT_DIR:/home/node/.copilot:Z" \
+  -v "$HOST_SANDBOX_NPM_DIR:/home/node/.npm:Z" \
+  copilot "$@"

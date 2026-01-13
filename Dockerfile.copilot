@@ -1,12 +1,15 @@
 FROM node:24-slim
-RUN npm install -g @github/copilot
-WORKDIR /project
-# ENV COPILOT_SANDBOX=podman
-# ENV COPILOT_SANDBOX_TYPE=podman
+
 ENV TERM=xterm-256color
 ENV COLORTERM=truecolor
 
+# Install GitHub Copilot CLI (latest version should work on slim)
+RUN npm install -g @github/copilot
+
+WORKDIR /project
+
 # Install system dependencies
+# Added 'sudo' to the list
 RUN apt-get update && apt-get install -y \
     git \
     make \
@@ -19,14 +22,18 @@ RUN apt-get update && apt-get install -y \
     procps \
     fzf \
     htop \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Go 1.25.5
-ENV GO_VERSION=1.25.5
-RUN wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz \
-    && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz \
-    && rm go${GO_VERSION}.linux-amd64.tar.gz
-
+# Install Go
+COPY --from=golang:latest /usr/local/go /usr/local/go
 ENV PATH=$PATH:/usr/local/go/bin:/root/go/bin
+
+# Configure sudo for 'node' user
+# 1. Ensure node user owns its home (just in case)
+# 2. Allow node user to use sudo without password
+RUN chown -R node:node /home/node && \
+    echo "node ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/node && \
+    chmod 0440 /etc/sudoers.d/node
 
 ENTRYPOINT ["copilot"]

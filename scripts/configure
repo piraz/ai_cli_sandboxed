@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# Determine the absolute project root directory
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# -----------------------------------------------------------------------------
+# 1. Setup Sandbox Directory (SELinux & Permissions)
+# -----------------------------------------------------------------------------
+SANDBOX_DIR="$PROJECT_ROOT/sandbox/copilot/.copilot"
+
+echo "Configuring sandbox directory at: $SANDBOX_DIR"
+mkdir -p "$SANDBOX_DIR"
+
+# Apply SELinux label 'container_file_t' if chcon is available
+if command -v chcon &> /dev/null; then
+    echo "Applying SELinux context (container_file_t)..."
+    if chcon -Rt container_file_t "$SANDBOX_DIR"; then
+        echo "✅ SELinux context applied successfully."
+    else
+        echo "⚠️  Failed to apply SELinux context. You might need to run this manually or check permissions."
+    fi
+else
+    echo "ℹ️  'chcon' not found. Skipping SELinux configuration (not required on non-SELinux systems)."
+fi
+
+# -----------------------------------------------------------------------------
+# 2. Setup Wrapper Script in ~/bin
+# -----------------------------------------------------------------------------
+if [ ! -d "$HOME/bin" ]; then
+    echo "Directory ~/bin does not exist. Creating..."
+    mkdir -p "$HOME/bin"
+fi
+
+TARGET_SCRIPT="$HOME/bin/copilot_sandboxed"
+echo "Creating wrapper script at $TARGET_SCRIPT..."
+
+cat <<EOF > "$TARGET_SCRIPT"
+#!/bin/bash
+export PROJECT_ROOT="$PROJECT_ROOT"
+export COPILOT_SANDBOXED_HOME="\$PROJECT_ROOT"
+
+# Execute the project script
+"\$PROJECT_ROOT/scripts/copilot" "\$@"
+EOF
+
+chmod +x "$TARGET_SCRIPT"
+echo "✅ Wrapper script created: $TARGET_SCRIPT"
+
+echo ""
+echo "Setup complete! You can now run: copilot_sandboxed"
